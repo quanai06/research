@@ -1,0 +1,16 @@
+2026-05-20 11:04:31.489 | INFO     | __main__:<module>:83 - Distributed environment: DistributedType.NO
+Num processes: 1
+Process index: 0
+Local process index: 0
+Device: cuda
+
+Mixed precision type: no
+
+2026-05-20 11:04:31.489 | INFO     | __main__:<module>:84 - {'seed': 22, 'output_dir': './prompt-conv-inspired', 'debug': False, 'dataset': 'inspired', 'num_workers': 0, 'context_max_length': 200, 'resp_max_length': 80, 'entity_max_length': 64, 'prompt_max_length': 50, 'tokenizer': 'microsoft/DialoGPT-small', 'ignore_pad_token_for_loss': False, 'text_tokenizer': 'roberta-base', 'model': 'microsoft/DialoGPT-small', 'max_gen_len': 50, 'text_encoder': 'roberta-base', 'prompt_encoder': None, 'n_prefix_conv': 110, 'num_bases': 8, 'n_examples': 3, 'num_train_epochs': 10, 'max_train_steps': None, 'per_device_train_batch_size': 32, 'per_device_eval_batch_size': 32, 'gradient_accumulation_steps': 1, 'learning_rate': 0.0001, 'weight_decay': 0.01, 'max_grad_norm': None, 'num_warmup_steps': 6345, 'fp16': False, 'mapping': False, 'bias_only': False, 'use_wandb': False, 'entity': None, 'project': None, 'name': None, 'log_all': False, 'type_of_run': 'training'}
+2026-05-20 11:05:43.749 | INFO     | __main__:<module>:249 - ***** Running training *****
+2026-05-20 11:05:43.749 | INFO     | __main__:<module>:250 -   Num examples = 7806
+2026-05-20 11:05:43.749 | INFO     | __main__:<module>:251 -   Num Epochs = 10
+2026-05-20 11:05:43.750 | INFO     | __main__:<module>:252 -   Instantaneous batch size per device = 32
+2026-05-20 11:05:43.750 | INFO     | __main__:<module>:253 -   Total train batch size (w. parallel, distributed & accumulation) = 32
+2026-05-20 11:05:43.750 | INFO     | __main__:<module>:254 -   Gradient Accumulation steps = 1
+2026-05-20 11:05:43.750 | INFO     | __main__:<module>:255 -   Total optimization steps = 2440

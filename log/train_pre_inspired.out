@@ -1,0 +1,216 @@
+/venv/mscrs/lib/python3.12/site-packages/transformers/utils/generic.py:441: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+/venv/mscrs/lib/python3.12/site-packages/transformers/utils/generic.py:309: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+/venv/mscrs/lib/python3.12/site-packages/transformers/utils/generic.py:309: FutureWarning: `torch.utils._pytree._register_pytree_node` is deprecated. Please use `torch.utils._pytree.register_pytree_node` instead.
+  _torch_pytree._register_pytree_node(
+2026-05-20 10:49:52.118 | INFO     | __main__:<module>:78 - Distributed environment: DistributedType.NO
+Num processes: 1
+Process index: 0
+Local process index: 0
+Device: cuda
+
+Mixed precision type: no
+
+2026-05-20 10:49:52.118 | INFO     | __main__:<module>:79 - {'seed': 222, 'output_dir': 'pretrained/inspired-model', 'debug': False, 'dataset': 'inspired', 'shot': 1, 'use_resp': False, 'context_max_length': 200, 'prompt_max_length': 200, 'entity_max_length': 32, 'num_workers': 0, 'tokenizer': 'microsoft/DialoGPT-small', 'text_tokenizer': 'roberta-base', 'model': 'microsoft/DialoGPT-small', 'text_encoder': 'roberta-base', 'num_bases': 8, 'n_prefix_rec': 10, 'prompt_encoder': 'pretrained/pre-trained-inspired/final', 'num_train_epochs': 20, 'max_train_steps': None, 'per_device_train_batch_size': 64, 'per_device_eval_batch_size': 64, 'gradient_accumulation_steps': 1, 'learning_rate': 0.0001, 'weight_decay': 0, 'max_grad_norm': None, 'num_warmup_steps': 33, 'fp16': False, 'use_wandb': False, 'entity': None, 'project': None, 'name': None, 'log_all': False}
+loading file vocab.json from cache at /workspace/.hf_home/hub/models--microsoft--DialoGPT-small/snapshots/49c537161a457d5256512f9d2d38a87d81ae0f0e/vocab.json
+loading file merges.txt from cache at /workspace/.hf_home/hub/models--microsoft--DialoGPT-small/snapshots/49c537161a457d5256512f9d2d38a87d81ae0f0e/merges.txt
+loading file tokenizer.json from cache at None
+loading file added_tokens.json from cache at None
+loading file special_tokens_map.json from cache at None
+loading file tokenizer_config.json from cache at /workspace/.hf_home/hub/models--microsoft--DialoGPT-small/snapshots/49c537161a457d5256512f9d2d38a87d81ae0f0e/tokenizer_config.json
+loading configuration file config.json from cache at /workspace/.hf_home/hub/models--microsoft--DialoGPT-small/snapshots/49c537161a457d5256512f9d2d38a87d81ae0f0e/config.json
+Model config GPT2Config {
+  "activation_function": "gelu_new",
+  "architectures": [
+    "GPT2LMHeadModel"
+  ],
+  "attn_pdrop": 0.1,
+  "bos_token_id": 50256,
+  "embd_pdrop": 0.1,
+  "eos_token_id": 50256,
+  "initializer_range": 0.02,
+  "layer_norm_epsilon": 1e-05,
+  "model_type": "gpt2",
+  "n_ctx": 1024,
+  "n_embd": 768,
+  "n_head": 12,
+  "n_inner": null,
+  "n_layer": 12,
+  "n_positions": 1024,
+  "reorder_and_upcast_attn": false,
+  "resid_pdrop": 0.1,
+  "scale_attn_by_inverse_layer_idx": false,
+  "scale_attn_weights": true,
+  "summary_activation": null,
+  "summary_first_dropout": 0.1,
+  "summary_proj_to_labels": true,
+  "summary_type": "cls_index",
+  "summary_use_proj": true,
+  "task_specific_params": {
+    "conversational": {
+      "max_length": 1000
+    }
+  },
+  "transformers_version": "4.36.2",
+  "use_cache": true,
+  "vocab_size": 50257
+}
+
+loading weights file model.safetensors from cache at /workspace/.hf_home/hub/models--microsoft--DialoGPT-small/snapshots/49c537161a457d5256512f9d2d38a87d81ae0f0e/model.safetensors
+Generate config GenerationConfig {
+  "bos_token_id": 50256,
+  "eos_token_id": 50256
+}
+
+All model checkpoint weights were used when initializing PromptGPT2forCRS.
+
+All the weights of PromptGPT2forCRS were initialized from the model checkpoint at microsoft/DialoGPT-small.
+If your task is similar to the task the model of the checkpoint was trained on, you can already use PromptGPT2forCRS for predictions without further training.
+loading configuration file generation_config.json from cache at /workspace/.hf_home/hub/models--microsoft--DialoGPT-small/snapshots/49c537161a457d5256512f9d2d38a87d81ae0f0e/generation_config.json
+Generate config GenerationConfig {
+  "bos_token_id": 50256,
+  "eos_token_id": 50256
+}
+
+You are resizing the embedding layer without providing a `pad_to_multiple_of` parameter. This means that the new embedding dimension will be 50259. This might induce some performance reduction as *Tensor Cores* will not be available. For more details about this, or help on choosing the correct value for resizing, refer to this guide: https://docs.nvidia.com/deeplearning/performance/dl-performance-matrix-multiplication/index.html#requirements-tc
+loading configuration file config.json from cache at /workspace/.hf_home/hub/models--roberta-base/snapshots/e2da8e2f811d1448a5b465c236feacd80ffbac7b/config.json
+Model config RobertaConfig {
+  "_name_or_path": "roberta-base",
+  "architectures": [
+    "RobertaForMaskedLM"
+  ],
+  "attention_probs_dropout_prob": 0.1,
+  "bos_token_id": 0,
+  "classifier_dropout": null,
+  "eos_token_id": 2,
+  "hidden_act": "gelu",
+  "hidden_dropout_prob": 0.1,
+  "hidden_size": 768,
+  "initializer_range": 0.02,
+  "intermediate_size": 3072,
+  "layer_norm_eps": 1e-05,
+  "max_position_embeddings": 514,
+  "model_type": "roberta",
+  "num_attention_heads": 12,
+  "num_hidden_layers": 12,
+  "pad_token_id": 1,
+  "position_embedding_type": "absolute",
+  "transformers_version": "4.36.2",
+  "type_vocab_size": 1,
+  "use_cache": true,
+  "vocab_size": 50265
+}
+
+loading file vocab.json from cache at /workspace/.hf_home/hub/models--roberta-base/snapshots/e2da8e2f811d1448a5b465c236feacd80ffbac7b/vocab.json
+loading file merges.txt from cache at /workspace/.hf_home/hub/models--roberta-base/snapshots/e2da8e2f811d1448a5b465c236feacd80ffbac7b/merges.txt
+loading file tokenizer.json from cache at /workspace/.hf_home/hub/models--roberta-base/snapshots/e2da8e2f811d1448a5b465c236feacd80ffbac7b/tokenizer.json
+loading file added_tokens.json from cache at None
+loading file special_tokens_map.json from cache at None
+loading file tokenizer_config.json from cache at /workspace/.hf_home/hub/models--roberta-base/snapshots/e2da8e2f811d1448a5b465c236feacd80ffbac7b/tokenizer_config.json
+loading configuration file config.json from cache at /workspace/.hf_home/hub/models--roberta-base/snapshots/e2da8e2f811d1448a5b465c236feacd80ffbac7b/config.json
+Model config RobertaConfig {
+  "_name_or_path": "roberta-base",
+  "architectures": [
+    "RobertaForMaskedLM"
+  ],
+  "attention_probs_dropout_prob": 0.1,
+  "bos_token_id": 0,
+  "classifier_dropout": null,
+  "eos_token_id": 2,
+  "hidden_act": "gelu",
+  "hidden_dropout_prob": 0.1,
+  "hidden_size": 768,
+  "initializer_range": 0.02,
+  "intermediate_size": 3072,
+  "layer_norm_eps": 1e-05,
+  "max_position_embeddings": 514,
+  "model_type": "roberta",
+  "num_attention_heads": 12,
+  "num_hidden_layers": 12,
+  "pad_token_id": 1,
+  "position_embedding_type": "absolute",
+  "transformers_version": "4.36.2",
+  "type_vocab_size": 1,
+  "use_cache": true,
+  "vocab_size": 50265
+}
+
+loading configuration file config.json from cache at /workspace/.hf_home/hub/models--roberta-base/snapshots/e2da8e2f811d1448a5b465c236feacd80ffbac7b/config.json
+Model config RobertaConfig {
+  "_name_or_path": "roberta-base",
+  "architectures": [
+    "RobertaForMaskedLM"
+  ],
+  "attention_probs_dropout_prob": 0.1,
+  "bos_token_id": 0,
+  "classifier_dropout": null,
+  "eos_token_id": 2,
+  "hidden_act": "gelu",
+  "hidden_dropout_prob": 0.1,
+  "hidden_size": 768,
+  "initializer_range": 0.02,
+  "intermediate_size": 3072,
+  "layer_norm_eps": 1e-05,
+  "max_position_embeddings": 514,
+  "model_type": "roberta",
+  "num_attention_heads": 12,
+  "num_hidden_layers": 12,
+  "pad_token_id": 1,
+  "position_embedding_type": "absolute",
+  "transformers_version": "4.36.2",
+  "type_vocab_size": 1,
+  "use_cache": true,
+  "vocab_size": 50265
+}
+
+loading weights file model.safetensors from cache at /workspace/.hf_home/hub/models--roberta-base/snapshots/e2da8e2f811d1448a5b465c236feacd80ffbac7b/model.safetensors
+Some weights of the model checkpoint at roberta-base were not used when initializing RobertaModel: ['lm_head.dense.weight', 'lm_head.layer_norm.weight', 'lm_head.layer_norm.bias', 'lm_head.dense.bias', 'lm_head.bias']
+- This IS expected if you are initializing RobertaModel from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
+- This IS NOT expected if you are initializing RobertaModel from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+Some weights of RobertaModel were not initialized from the model checkpoint at roberta-base and are newly initialized: ['roberta.pooler.dense.bias', 'roberta.pooler.dense.weight']
+You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference.
+You are resizing the embedding layer without providing a `pad_to_multiple_of` parameter. This means that the new embedding dimension will be 50266. This might induce some performance reduction as *Tensor Cores* will not be available. For more details about this, or help on choosing the correct value for resizing, refer to this guide: https://docs.nvidia.com/deeplearning/performance/dl-performance-matrix-multiplication/index.html#requirements-tc
+  0%|                                                                                                                                        | 0/8607 [00:00<?, ?it/s]Token indices sequence length is longer than the specified maximum sequence length for this model (574 > 512). Running this sequence through the model will result in indexing errors
+  2%|██▍                                                                                                                         | 170/8607 [00:00<00:05, 1680.23it/s]  4%|█████▏                                                                                                                      | 359/8607 [00:00<00:04, 1774.85it/s]  6%|███████▋                                                                                                                    | 537/8607 [00:00<00:04, 1663.86it/s]  9%|██████████▋                                                                                                                 | 740/8607 [00:00<00:04, 1800.64it/s] 11%|█████████████▋                                                                                                              | 954/8607 [00:00<00:04, 1910.23it/s] 14%|█████████████████▍                                                                                                         | 1219/8607 [00:00<00:03, 2147.10it/s] 17%|████████████████████▌                                                                                                      | 1435/8607 [00:00<00:03, 2038.89it/s] 19%|███████████████████████▊                                                                                                   | 1664/8607 [00:00<00:03, 2107.93it/s] 22%|██████████████████████████▊                                                                                                | 1877/8607 [00:00<00:03, 1962.32it/s] 24%|█████████████████████████████▋                                                                                             | 2081/8607 [00:01<00:03, 1981.21it/s] 27%|████████████████████████████████▌                                                                                          | 2282/8607 [00:01<00:03, 1875.48it/s] 29%|███████████████████████████████████▎                                                                                       | 2472/8607 [00:01<00:03, 1870.51it/s] 31%|██████████████████████████████████████                                                                                     | 2661/8607 [00:01<00:03, 1822.93it/s] 33%|████████████████████████████████████████▉                                                                                  | 2864/8607 [00:01<00:03, 1879.13it/s] 36%|███████████████████████████████████████████▋                                                                               | 3060/8607 [00:01<00:02, 1900.43it/s] 38%|██████████████████████████████████████████████▋                                                                            | 3267/8607 [00:01<00:02, 1948.13it/s] 40%|█████████████████████████████████████████████████▌                                                                         | 3465/8607 [00:01<00:02, 1952.45it/s] 43%|████████████████████████████████████████████████████▋                                                                      | 3687/8607 [00:01<00:02, 2025.16it/s] 45%|███████████████████████████████████████████████████████▌                                                                   | 3890/8607 [00:02<00:02, 1988.61it/s] 48%|██████████████████████████████████████████████████████████▍                                                                | 4090/8607 [00:02<00:02, 1839.27it/s] 50%|█████████████████████████████████████████████████████████████▊                                                             | 4325/8607 [00:02<00:02, 1971.16it/s] 53%|████████████████████████████████████████████████████████████████▋                                                          | 4525/8607 [00:02<00:02, 1673.88it/s] 55%|████████████████████████████████████████████████████████████████████                                                       | 4765/8607 [00:02<00:02, 1859.01it/s] 59%|████████████████████████████████████████████████████████████████████████▏                                                  | 5051/8607 [00:02<00:01, 2125.32it/s] 62%|███████████████████████████████████████████████████████████████████████████▊                                               | 5302/8607 [00:02<00:01, 2209.14it/s] 64%|███████████████████████████████████████████████████████████████████████████████                                            | 5531/8607 [00:02<00:01, 2059.74it/s] 67%|██████████████████████████████████████████████████████████████████████████████████▋                                        | 5787/8607 [00:02<00:01, 2186.46it/s] 70%|█████████████████████████████████████████████████████████████████████████████████████▉                                     | 6012/8607 [00:03<00:01, 2138.52it/s] 72%|█████████████████████████████████████████████████████████████████████████████████████████                                  | 6231/8607 [00:03<00:01, 2124.43it/s] 76%|█████████████████████████████████████████████████████████████████████████████████████████████▌                             | 6546/8607 [00:03<00:00, 2404.26it/s] 81%|███████████████████████████████████████████████████████████████████████████████████████████████████▌                       | 6969/8607 [00:03<00:00, 2913.40it/s] 86%|█████████████████████████████████████████████████████████████████████████████████████████████████████████▌                 | 7387/8607 [00:03<00:00, 3259.92it/s] 90%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████▎            | 7717/8607 [00:03<00:00, 3040.63it/s] 94%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████▍       | 8082/8607 [00:03<00:00, 3195.80it/s] 98%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████▏  | 8407/8607 [00:03<00:00, 3024.95it/s]100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 8607/8607 [00:03<00:00, 2216.22it/s]
+17321
+/research/rec/src/dataset_dbpedia_inspired.py:79: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  self.edge_index_c = torch.load(input_file)
+  0%|                                                                                                                                        | 0/1039 [00:00<?, ?it/s] 15%|██████████████████                                                                                                          | 151/1039 [00:00<00:00, 1487.14it/s] 37%|█████████████████████████████████████████████▊                                                                              | 384/1039 [00:00<00:00, 1948.77it/s] 59%|█████████████████████████████████████████████████████████████████████████▏                                                  | 613/1039 [00:00<00:00, 2089.78it/s] 79%|██████████████████████████████████████████████████████████████████████████████████████████████████                          | 822/1039 [00:00<00:00, 1934.63it/s]100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1039/1039 [00:00<00:00, 2026.16it/s]
+  0%|                                                                                                                                        | 0/1059 [00:00<?, ?it/s] 19%|███████████████████████▌                                                                                                    | 201/1059 [00:00<00:00, 2003.45it/s] 38%|███████████████████████████████████████████████                                                                             | 402/1059 [00:00<00:00, 1814.32it/s] 58%|███████████████████████████████████████████████████████████████████████▌                                                    | 611/1059 [00:00<00:00, 1921.20it/s] 79%|█████████████████████████████████████████████████████████████████████████████████████████████████▍                          | 832/1059 [00:00<00:00, 2027.20it/s]100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1059/1059 [00:00<00:00, 2219.28it/s]
+/research/rec/src/model_prompt.py:351: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  torch.load(load_path, map_location=torch.device('cpu')), strict=False
+['edge_index', 'edge_index_c', 'edge_index_t_s', 'edge_index_i_s', 'edge_type', 'rec_prefix_embeds', 'rec_prefix_proj.0.weight', 'rec_prefix_proj.0.bias', 'rec_prefix_proj.2.weight', 'rec_prefix_proj.2.bias'] []
+/venv/mscrs/lib/python3.12/site-packages/transformers/optimization.py:429: FutureWarning: This implementation of AdamW is deprecated and will be removed in a future version. Use the PyTorch implementation torch.optim.AdamW instead, or set `no_deprecation_warning=True` to disable this warning
+  warnings.warn(
+2026-05-20 10:50:10.920 | INFO     | __main__:<module>:210 - ***** Running training *****
+2026-05-20 10:50:10.920 | INFO     | __main__:<module>:211 -   Num examples = 2094
+2026-05-20 10:50:10.920 | INFO     | __main__:<module>:212 -   Num test examples = 256
+2026-05-20 10:50:10.920 | INFO     | __main__:<module>:213 -   Num valid examples = 273
+2026-05-20 10:50:10.920 | INFO     | __main__:<module>:215 -   Num Epochs = 20
+2026-05-20 10:50:10.921 | INFO     | __main__:<module>:216 -   Instantaneous batch size per device = 64
+2026-05-20 10:50:10.921 | INFO     | __main__:<module>:217 -   Total train batch size (w. parallel, distributed & accumulation) = 64
+2026-05-20 10:50:10.921 | INFO     | __main__:<module>:218 -   Gradient Accumulation steps = 1
+2026-05-20 10:50:10.921 | INFO     | __main__:<module>:219 -   Total optimization steps = 660
+  0%|                                                                                                                                         | 0/660 [00:00<?, ?it/s]You're using a GPT2TokenizerFast tokenizer. Please note that with a fast tokenizer, using the `__call__` method is faster than using a method to encode the text followed by a call to the `pad` method to get a padded encoding.
+/venv/mscrs/lib/python3.12/site-packages/transformers/tokenization_utils_base.py:2636: UserWarning: `max_length` is ignored when `padding`=`True` and there is no truncation strategy. To pad to max length, use `padding='max_length'`.
+  warnings.warn(
+You're using a RobertaTokenizerFast tokenizer. Please note that with a fast tokenizer, using the `__call__` method is faster than using a method to encode the text followed by a call to the `pad` method to get a padded encoding.
+  0%|▏                                                                                                                                | 1/660 [00:01<11:48,  1.08s/it]  0%|▍                                                                                                                                | 2/660 [00:01<09:11,  1.19it/s]  0%|▌                                                                                                                                | 3/660 [00:02<08:20,  1.31it/s]  1%|▊                                                                                                                                | 4/660 [00:03<07:55,  1.38it/s]  1%|▉                                                                                                                                | 5/660 [00:03<07:41,  1.42it/s]  1%|█▏                                                                                                                               | 6/660 [00:04<07:33,  1.44it/s]  1%|█▎                                                                                                                               | 7/660 [00:05<07:26,  1.46it/s]  1%|█▌                                                                                                                               | 8/660 [00:05<07:22,  1.47it/s]  1%|█▊                                                                                                                               | 9/660 [00:06<07:19,  1.48it/s]  2%|█▉                                                                                                                              | 10/660 [00:07<07:16,  1.49it/s]  2%|██▏                                                                                                                             | 11/660 [00:07<07:14,  1.49it/s]  2%|██▎                                                                                                                             | 12/660 [00:08<07:14,  1.49it/s]  2%|██▌                                                                                                                             | 13/660 [00:09<07:13,  1.49it/s]  2%|██▋                                                                                                                             | 14/660 [00:09<07:12,  1.49it/s]  2%|██▉                                                                                                                             | 15/660 [00:10<07:12,  1.49it/s]  2%|███                                                                                                                             | 16/660 [00:11<07:12,  1.49it/s]  3%|███▎                                                                                                                            | 17/660 [00:11<07:11,  1.49it/s]Traceback (most recent call last):
+  File "/research/rec/src/train_rec_inspired.py", line 248, in <module>
+    loss = model(**batch['context'], rec=True).rec_loss / args.gradient_accumulation_steps
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/venv/mscrs/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1553, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/venv/mscrs/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1562, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/research/rec/src/model_gpt2.py", line 687, in forward
+    rec_loss = F.cross_entropy(rec_logits, rec_labels)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/venv/mscrs/lib/python3.12/site-packages/torch/nn/functional.py", line 3014, in cross_entropy
+    def cross_entropy(
+    
+KeyboardInterrupt
+  3%|███▎                                                                                                                            | 17/660 [00:12<07:57,  1.35it/s]
