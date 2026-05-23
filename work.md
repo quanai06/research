@@ -2,6 +2,24 @@
 
 Mục tiêu: sửa compatibility cho Python 3.12.7 và bộ thư viện mới trong `requirements.txt`, không thay đổi logic thí nghiệm/training.
 
+## Current Project Layout
+
+Source code is organized under one package:
+
+```text
+src/common/  # shared helpers/evaluators
+src/conv/    # conversation pipeline
+src/rec/     # recommendation pipeline
+```
+
+Data is organized by usage scope:
+
+```text
+data/common/ # KG, embeddings, and shared dataset assets
+data/conv/   # conversation-only processed data
+data/rec/    # recommendation-only train/pretrain data
+```
+
 ## Server GPU Setup
 
 Các bước sau khi thuê được GPU server và đã copy repo vào server.
@@ -78,7 +96,7 @@ cd /path/to/research
 Chạy pretrain:
 
 ```bash
-python rec/src/train_pre_inspired.py > log/train_pre_inspired.out 2>&1
+python -m src.rec.train.train_pre_inspired > log/train_pre_inspired_23_5.out 2>&1
 ```
 
 Detach khỏi tmux nhưng process vẫn chạy:
@@ -97,7 +115,7 @@ tmux attach -t mscrs
 Theo dõi log:
 
 ```bash
-tail -f log/train_pre_inspired.out
+tail -f log/train_pre_inspired_23_5.out
 ```
 
 ### 6. Chạy đủ pipeline
@@ -105,16 +123,16 @@ tail -f log/train_pre_inspired.out
 Chạy theo thứ tự:
 
 ```bash
-python rec/src/train_pre_inspired.py > log/train_pre_inspired.out 2>&1
-python rec/src/train_rec_inspired.py > log/train_rec_inspired.out 2>&1
-python conv/src/train_conv.py > log/train_conv.out 2>&1
+python -m src.rec.train.train_pre_inspired > log/train_pre_inspired.out 2>&1
+python -m src.rec.train.train_rec_inspired > log/train_rec_inspired.out 2>&1
+python -m src.conv.train_conv > log/train_conv.out 2>&1
 ```
 
 Nếu `conv` bị CUDA OOM trên RTX 3090 24GB, chạy lại với batch nhỏ hơn:
 
 ```bash
 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
-python conv/src/train_conv.py \
+python -m src.conv.train_conv \
   --fp16 \
   --per_device_train_batch_size 4 \
   --per_device_eval_batch_size 4 \
@@ -143,12 +161,12 @@ prompt-conv-inspired/
 ## 1. Accelerate mixed precision
 
 Files:
-- `rec/src/train_pre_inspired.py`
-- `rec/src/train_rec_inspired.py`
-- `rec/src/train_pre_redial.py`
-- `rec/src/train_rec_redial.py`
-- `conv/src/train_conv.py`
-- `conv/src/infer_conv.py`
+- `src/rec/train/train_pre_inspired.py`
+- `src/rec/train/train_rec_inspired.py`
+- `src/rec/train/train_pre_redial.py`
+- `src/rec/train/train_rec_redial.py`
+- `src/conv/train_conv.py`
+- `src/conv/infer_conv.py`
 
 Code cũ:
 
@@ -185,10 +203,10 @@ Note: Không đổi logic model/dataset/loss. Thay đổi này chỉ cập nhậ
 ## 2. Replace `accelerator.use_fp16`
 
 Files:
-- `rec/src/train_pre_inspired.py`
-- `rec/src/train_pre_redial.py`
-- `conv/src/train_conv.py`
-- `conv/src/infer_conv.py`
+- `src/rec/train/train_pre_inspired.py`
+- `src/rec/train/train_pre_redial.py`
+- `src/conv/train_conv.py`
+- `src/conv/infer_conv.py`
 
 Code cũ:
 
@@ -207,7 +225,7 @@ Note: Không đổi logic padding/collator. Đây là đổi API tương thích 
 ## 3. Guard W&B calls in conv training
 
 File:
-- `conv/src/train_conv.py`
+- `src/conv/train_conv.py`
 
 Code cũ:
 
@@ -239,7 +257,7 @@ Note: Không đổi training logic. Thay đổi này chỉ ngăn lỗi login/ini
 ## 4. Remove unused fragile Transformers imports
 
 File:
-- `conv/src/train_conv.py`
+- `src/conv/train_conv.py`
 
 Code cũ:
 
@@ -262,8 +280,8 @@ Note: Không đổi logic. Các symbol bị bỏ đều không được dùng tr
 ## 5. `ModelOutput` import compatibility
 
 Files:
-- `rec/src/model_gpt2.py`
-- `conv/src/model_gpt2.py`
+- `src/rec/models/model_gpt2.py`
+- `src/conv/models/model_gpt2.py`
 
 Code cũ:
 
@@ -285,8 +303,8 @@ Note: Không đổi logic model. Đây là fallback import để chạy được
 ## 6. Generation cache argument compatibility
 
 Files:
-- `rec/src/model_gpt2.py`
-- `conv/src/model_gpt2.py`
+- `src/rec/models/model_gpt2.py`
+- `src/conv/models/model_gpt2.py`
 
 Code cũ:
 
@@ -312,11 +330,11 @@ Note: Không đổi công thức generation. Thay đổi này cho phép Hugging 
 ## 7. Not changed: optimizer
 
 Files liên quan:
-- `rec/src/train_pre_inspired.py`
-- `rec/src/train_rec_inspired.py`
-- `rec/src/train_pre_redial.py`
-- `rec/src/train_rec_redial.py`
-- `conv/src/train_conv.py`
+- `src/rec/train/train_pre_inspired.py`
+- `src/rec/train/train_rec_inspired.py`
+- `src/rec/train/train_pre_redial.py`
+- `src/rec/train/train_rec_redial.py`
+- `src/conv/train_conv.py`
 
 Code giữ nguyên:
 

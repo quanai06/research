@@ -1,0 +1,10 @@
+/data/
+/log/
+/pretrained/
+
+__pycache__/
+*.pyc
+.DS_Store
+
+.vscode/
+restructure_backup_20260522/
