@@ -210,7 +210,7 @@ class CRSConvDataCollator:
 
 
 if __name__ == '__main__':
-    from src.conv.data.dataset_dbpedia import DBpedia
+    from src.conv.data.kg_resources import DBpedia
     from pprint import pprint
 
     debug = False

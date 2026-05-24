@@ -13,12 +13,15 @@ from loguru import logger
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 from transformers import AdamW, get_linear_schedule_with_warmup, AutoTokenizer, AutoModel
-from src.conv.config_copy import gpt2_special_tokens_dict, prompt_special_tokens_dict
-from src.conv.data.dataset_conv_retrieval_prompt import CRSConvDataCollator, CRSConvDataset
-from src.conv.data.dataset_dbpedia import DBpedia ,Co_occurrence ,text_sim ,image_sim
+from src.common.modality_config import add_modality_args, modality_config_from_args
+from src.common.semantic_graphs import CollaborativeSemanticGraph, ImageSemanticGraph, TextSemanticGraph
+from src.conv.retrieval_prompt_config import gpt2_special_tokens_dict, prompt_special_tokens_dict
+from src.conv.data.retrieval_prompt_dataset import CRSConvDataCollator, CRSConvDataset
+from src.conv.data.kg_resources import DBpedia
 from src.conv.eval.evaluate_conv import ConvEvaluator
 from src.conv.utils import init_wandb_run, GENERATION, PROJECT_NAME, MODEL_NAME, wandb_logging, freeze_model_params, count_parameters, save
-from src.conv.models.model_prompt import MMPrompt
+from src.conv.models.retrieval_prompt_encoder import RetrievalConversationPromptEncoder
+from src.conv.models.mscrs_conv_model import MSCRSConvModel
 from transformers import AutoModelForCausalLM
 import wandb
 
@@ -66,6 +69,7 @@ def parse_args():
     parser.add_argument("--name", type=str, help="wandb exp name")
     parser.add_argument("--log_all", action="store_true", help="log in all processes, otherwise only in rank0")
     parser.add_argument('--type_of_run', default='training', help='type of the experiment, eg: full, ablation, analysis')
+    add_modality_args(parser)
     args = parser.parse_args()
     return args
 
@@ -105,9 +109,9 @@ if __name__ == '__main__':
     if args.output_dir is not None:
         os.makedirs(args.output_dir, exist_ok=True)
     kg = DBpedia(dataset=args.dataset, debug=args.debug).get_entity_kg_info()
-    co = Co_occurrence(dataset=args.dataset, split='train', debug=args.debug ,all_items = kg['item_ids'],entity_max_length=args.entity_max_length,n_entity=kg['num_entities'] ).get_entity_co_info()
-    text_simi  = text_sim(pad_entity_id=kg['pad_entity_id'], dataset=args.dataset).get_entity_ts_info()
-    image_simi = image_sim(pad_entity_id=kg['pad_entity_id'], dataset=args.dataset).get_entity_is_info()    
+    co = CollaborativeSemanticGraph(dataset=args.dataset, split='train', debug=args.debug, all_items=kg['item_ids'], entity_max_length=args.entity_max_length, n_entity=kg['num_entities']).get_entity_co_info()
+    text_simi = TextSemanticGraph(pad_entity_id=kg['pad_entity_id'], dataset=args.dataset, top_k=20).get_entity_ts_info()
+    image_simi = ImageSemanticGraph(pad_entity_id=kg['pad_entity_id'], dataset=args.dataset, top_k=20).get_entity_is_info()
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer)
     tokenizer.add_special_tokens(gpt2_special_tokens_dict)
     model = AutoModelForCausalLM.from_pretrained(args.model)
@@ -122,13 +126,14 @@ if __name__ == '__main__':
     print(tokenizer.pad_token_id)
     print(tokenizer.encode('<movie>'))
 
-    prompt_encoder = MMPrompt(
+    prompt_encoder = RetrievalConversationPromptEncoder(
         model.config.n_embd, text_encoder.config.hidden_size, model.config.n_head, model.config.n_layer, 2,
         n_entity=kg['num_entities'], num_relations=kg['num_relations'], num_bases=args.num_bases,
         edge_index=kg['edge_index'], edge_type=kg['edge_type'],edge_index_c = co['edge_index_c'],edge_index_i_s = image_simi['edge_index_i_s'],edge_index_t_s = text_simi['edge_index_t_s'], idx_to_id = text_simi['idx_to_id'],
         n_prefix_rec=args.n_prefix_conv,
         prompt_max_length = args.prompt_max_length,
-        n_examples= args.n_examples
+        n_examples= args.n_examples,
+        modality_config=modality_config_from_args(args, add_item_semantic_to_entities=True)
     )
 
     if args.use_wandb:
@@ -233,6 +238,14 @@ if __name__ == '__main__':
     gen_file_path = os.path.join('log', f'gen_{local_time}.jsonl')
     evaluator = ConvEvaluator(tokenizer=tokenizer, log_file_path=gen_file_path)
     model, prompt_encoder, optimizer, train_dataloader = accelerator.prepare(model, prompt_encoder, optimizer, train_dataloader)
+    conv_model = MSCRSConvModel(
+        model=model,
+        text_encoder=text_encoder,
+        prompt_encoder=prompt_encoder,
+        n_examples=args.n_examples,
+        prompt_max_length=args.prompt_max_length,
+        mapping=args.mapping,
+    )
 
     # step, epoch, batch size
     num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps)
@@ -269,41 +282,9 @@ if __name__ == '__main__':
     # train loop
     for epoch in range(args.num_train_epochs):
         train_loss = []
-        model.train()
+        conv_model.train()
         for step, batch in enumerate(train_dataloader):
-            #### compute the prompts
-            with torch.no_grad():
-                token_embeds = text_encoder(**batch['prompt']).last_hidden_state
-
-            ### compute the retrieval-augmented prompts
-            prompt_augmented_input_embeddings, new_attention_mask, _, _ = prompt_encoder(
-                entity_ids=batch['entity'],
-                token_embeds=token_embeds,
-                output_entity=False,
-                use_conv_prefix=True,
-                mapping = args.mapping,
-                # word_embeddings = model.get_input_embeddings()(batch['retrieved_gen']['input_ids']),
-                word_embeddings = model.get_input_embeddings().weight,
-                context_input_embeddings = model.get_input_embeddings()(batch['context']['input_ids']),
-                attention_mask = batch['context']['attention_mask']
-            )
-            ### re-assign the new computed tensor to the input dictionary
-            batch['context']['input_ids'] = None
-            ### we directly feed the input embeddings through the generation model
-            batch['context']['inputs_embeds'] = prompt_augmented_input_embeddings
-            batch['context']['attention_mask'] = new_attention_mask
-
-            ## padding the label
-            pad_resp = -100 * torch.ones((new_attention_mask.shape[0], args.n_examples * args.prompt_max_length)).to(new_attention_mask.device).long()
-            #### padded response
-            batch['resp'] = torch.cat([pad_resp, batch['resp']], dim =1)
-
-            loss = model(
-                 inputs_embeds = batch['context']['inputs_embeds'],
-                 input_ids = None,
-                 labels = batch['resp'], 
-                 return_dict = True
-            )['loss'] / args.gradient_accumulation_steps
+            loss = conv_model.loss_from_batch(batch) / args.gradient_accumulation_steps
 
             accelerator.backward(loss)
             train_loss.append(float(loss))
@@ -332,69 +313,23 @@ if __name__ == '__main__':
 
         # dev
         valid_loss = []
-        model.eval()
+        conv_model.eval()
         for batch in tqdm(valid_dataloader, disable=not accelerator.is_local_main_process):
             with torch.no_grad():
-                token_embeds = text_encoder(**batch['prompt']).last_hidden_state
-                ### compute the retrieval-augmented prompts
-                prompt_augmented_input_embeddings, new_attention_mask, _, _ = prompt_encoder(
-                    entity_ids=batch['entity'],
-                    token_embeds=token_embeds,
-                    output_entity=False,
-                    use_conv_prefix=True,
-                    mapping = args.mapping,
-                    # word_embeddings = model.get_input_embeddings()(batch['retrieved_gen']['input_ids']),
-                    word_embeddings = model.get_input_embeddings().weight,
-                    context_input_embeddings = model.get_input_embeddings()(batch['context']['input_ids']),
-                    attention_mask = batch['context']['attention_mask']
-                )
-                ### re-assign the new computed tensor to the input dictionary
-                # batch['context']['input_ids'] = None
-                ### we directly feed the input embeddings through the generation model
-                batch['context']['inputs_embeds'] = prompt_augmented_input_embeddings
-                batch['context']['attention_mask'] = new_attention_mask
-
-                ## padding respose tensor
-                pad_resp = -100 * torch.ones((new_attention_mask.shape[0], args.n_examples  * args.prompt_max_length)).to(new_attention_mask.device).long()
-                batch['resp'] = torch.cat([pad_resp, batch['resp']], dim =1)
-
-                loss = model(inputs_embeds = batch['context']['inputs_embeds'],
-                    input_ids = None,
-                    labels = batch['resp'], 
-                    return_dict = True
-                )['loss']               
+                loss = conv_model.loss_from_batch(batch)
                 valid_loss.append(float(loss))
 
         evaluator.log_file.write(f'\n\n*** valid-{evaluator.log_cnt} ***\n\n')
         for batch in tqdm(valid_gen_dataloader, disable=not accelerator.is_local_main_process):
             with torch.no_grad():
-                token_embeds = text_encoder(**batch['prompt']).last_hidden_state
-                ### compute the retrieval-augmented prompts
-                prompt_augmented_input_embeddings, new_attention_mask, _, _ = prompt_encoder(
-                    entity_ids=batch['entity'],
-                    token_embeds=token_embeds,
-                    output_entity=False,
-                    use_conv_prefix=True,
-                    mapping = args.mapping,
-                    # word_embeddings = model.get_input_embeddings()(batch['retrieved_gen']['input_ids']),
-                    word_embeddings = model.get_input_embeddings().weight,
-                    context_input_embeddings = model.get_input_embeddings()(batch['context']['input_ids']),
-                    attention_mask = batch['context']['attention_mask']
-                )
-                ### re-assign the new computed tensor to the input dictionary
-                # batch['context']['input_ids'] = None
-                ### we directly feed the input embeddings through the generation model
-                batch['context']['inputs_embeds'] = prompt_augmented_input_embeddings
-                batch['context']['attention_mask'] = new_attention_mask
-                gen_seqs = accelerator.unwrap_model(model).generate(
-                    input_ids = None,
-                    inputs_embeds = batch['context']['inputs_embeds'],
+                gen_seqs = conv_model.generate_from_batch(
+                    batch,
+                    generation_model=accelerator.unwrap_model(model),
                     max_new_tokens=args.max_gen_len,
-                    no_repeat_ngram_size=3
                 )
                 gen_resp_ids = []
                 for gen_seq, length in zip(gen_seqs, batch['context_len']):
-                    gen_seq = [token_id.item() for token_id in gen_seq if token_id != tokenizer.pad_token_id]
+                    gen_seq = [int(token_id) for token_id in gen_seq if int(token_id) != tokenizer.pad_token_id]
                     gen_resp_ids.append(gen_seq)
                     # gen_resp_ids.append(gen_seq[length:])
                 evaluator.evaluate(gen_resp_ids, batch['resp'], log=accelerator.is_local_main_process)
@@ -424,69 +359,23 @@ if __name__ == '__main__':
 
         # test
         test_loss = []
-        model.eval()
+        conv_model.eval()
         for batch in tqdm(test_dataloader, disable=not accelerator.is_local_main_process):
             with torch.no_grad():
-                token_embeds = text_encoder(**batch['prompt']).last_hidden_state
-                ### compute the retrieval-augmented prompts
-                prompt_augmented_input_embeddings, new_attention_mask, _, _ = prompt_encoder(
-                    entity_ids=batch['entity'],
-                    token_embeds=token_embeds,
-                    output_entity=False,
-                    use_conv_prefix=True,
-                    mapping = args.mapping,
-                    # word_embeddings = model.get_input_embeddings()(batch['retrieved_gen']['input_ids']),
-                    word_embeddings = model.get_input_embeddings().weight,
-                    context_input_embeddings = model.get_input_embeddings()(batch['context']['input_ids']),
-                    attention_mask = batch['context']['attention_mask']
-                )
-                ### re-assign the new computed tensor to the input dictionary
-                batch['context']['input_ids'] = None
-                ### we directly feed the input embeddings through the generation model
-                batch['context']['inputs_embeds'] = prompt_augmented_input_embeddings
-                batch['context']['attention_mask'] = new_attention_mask
-            
-                pad_resp = -100 * torch.ones((new_attention_mask.shape[0], args.n_examples  * args.prompt_max_length)).to(new_attention_mask.device).long()
-                batch['resp'] = torch.cat([pad_resp, batch['resp']], dim =1)
-
-                loss = model(inputs_embeds = batch['context']['inputs_embeds'],
-                    input_ids = None,
-                    labels = batch['resp'], 
-                    return_dict = True
-                )['loss']        
-
+                loss = conv_model.loss_from_batch(batch)
                 test_loss.append(float(loss))
 
         evaluator.log_file.write(f'\n*** test-{evaluator.log_cnt} ***\n\n')
         for batch in tqdm(test_gen_dataloader, disable=not accelerator.is_local_main_process):
             with torch.no_grad():
-                token_embeds = text_encoder(**batch['prompt']).last_hidden_state
-                ### compute the retrieval-augmented prompts
-                prompt_augmented_input_embeddings, new_attention_mask, _, _ = prompt_encoder(
-                    entity_ids=batch['entity'],
-                    token_embeds=token_embeds,
-                    output_entity=False,
-                    use_conv_prefix=True,
-                    mapping = args.mapping,
-                    # word_embeddings = model.get_input_embeddings()(batch['retrieved_gen']['input_ids']),
-                    word_embeddings = model.get_input_embeddings().weight,
-                    context_input_embeddings = model.get_input_embeddings()(batch['context']['input_ids']),
-                    attention_mask = batch['context']['attention_mask']
-                )
-                ### re-assign the new computed tensor to the input dictionary
-                batch['context']['input_ids'] = None
-                ### we directly feed the input embeddings through the generation model
-                batch['context']['inputs_embeds'] = prompt_augmented_input_embeddings
-                batch['context']['attention_mask'] = new_attention_mask
-                gen_seqs = accelerator.unwrap_model(model).generate(
-                    input_ids = None,
-                    inputs_embeds = batch['context']['inputs_embeds'],
+                gen_seqs = conv_model.generate_from_batch(
+                    batch,
+                    generation_model=accelerator.unwrap_model(model),
                     max_new_tokens=args.max_gen_len,
-                    no_repeat_ngram_size=3
                 )
                 gen_resp_ids = []
                 for gen_seq, length in zip(gen_seqs, batch['context_len']):
-                    gen_seq = [token_id for token_id in gen_seq if token_id != tokenizer.pad_token_id]
+                    gen_seq = [int(token_id) for token_id in gen_seq if int(token_id) != tokenizer.pad_token_id]
                     gen_resp_ids.append(gen_seq)
                     # gen_resp_ids.append(gen_seq[length:])
                 evaluator.evaluate(gen_resp_ids, batch['resp'], log=accelerator.is_local_main_process)
