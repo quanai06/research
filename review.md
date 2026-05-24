@@ -343,3 +343,30 @@ Giới hạn hiện tại:
 
 - Chưa thể khẳng định 100% runtime vì môi trường Python hiện tại chưa có `torch`.
 - Cần chạy smoke test thật trên môi trường có dependency/model/data để xác nhận forward, checkpoint load và metric không lệch.
+
+## Fix sau khi chạy Redial trên Colab
+
+Lỗi gặp khi chạy `train_pre_redial.py`:
+
+```text
+CUDA error: device-side assert triggered
+scatter gather kernel index out of bounds
+```
+
+Nguyên nhân:
+
+- Redial KG có bước filter/reindex relation.
+- Relation ids sau reindex bắt đầu từ `1`.
+- `RGCNConv` yêu cầu mọi `edge_type` phải `< num_relations`.
+- Code common KG loader đang set `num_relations = len(relation_idx)`, trong khi `edge_type.max()` có thể bằng đúng `len(relation_idx)`.
+
+Đã sửa:
+
+- `src/common/kg_resources.py`
+- Với KG có filter relation, `num_relations` được set thành `max(edge_type) + 1`.
+
+Ý nghĩa:
+
+- Không đổi edge list hay relation ids.
+- Chỉ sửa metadata `num_relations` để khớp với index range mà `RGCNConv` cần.
+- Inspired không bị ảnh hưởng vì không dùng relation filtering.

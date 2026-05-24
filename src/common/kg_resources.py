@@ -38,8 +38,8 @@ class DBpedia:
             edge_list = self._build_bidirectional_edges()
 
         if cfg.filter_min_relation_count is not None:
-            edge_list, relation_count = self._filter_and_reindex_relations(edge_list, cfg.filter_min_relation_count)
-            self.num_relations = relation_count
+            edge_list, num_relations = self._filter_and_reindex_relations(edge_list, cfg.filter_min_relation_count)
+            self.num_relations = num_relations
         else:
             self.num_relations = len(self.relation2id)
 
@@ -93,7 +93,8 @@ class DBpedia:
             for head, tail, relation in edge_list
             if relation_cnt[relation] > min_relation_count
         ]
-        return edge_list, len(relation_idx)
+        num_relations = max(relation_idx.values(), default=-1) + 1
+        return edge_list, num_relations
 
     def get_entity_kg_info(self):
         return {
