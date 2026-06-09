@@ -13,12 +13,16 @@ from loguru import logger
 from torch.utils.data import DataLoader, random_split
 from tqdm.auto import tqdm
 from transformers import AdamW, get_linear_schedule_with_warmup, AutoTokenizer, AutoModel
+from src.common.modality_config import add_modality_args, modality_config_from_args
 from src.rec.config import gpt2_special_tokens_dict, prompt_special_tokens_dict
-from src.rec.data.dataset_dbpedia import DBpedia ,Co_occurrence,text_sim,image_sim
-from src.rec.data.dataset_rec_copy import CRSRecDataset, CRSRecDataCollator
+from src.common.semantic_graphs import CollaborativeSemanticGraph, ImageSemanticGraph, TextSemanticGraph
+from src.rec.data.redial_kg_resources import DBpedia
+from src.rec.data.redial_rec_dataset import CRSRecDataset, CRSRecDataCollator
 from src.rec.eval.evaluate_rec import RecEvaluator
 from src.rec.models.model_gpt2 import PromptGPT2forCRS
-from src.rec.models.model_prompt import MMPrompt
+from src.rec.models.mscrs_rec_model import MSCRSRecModel
+from src.rec.models.rec_prompt_encoder import RedialRecommendationPromptEncoder
+from src.rec.train.rec_runner import evaluate_rec_epoch, train_rec_epoch
 
 
 def parse_args():
@@ -49,12 +53,14 @@ def parse_args():
     parser.add_argument("--weight_decay", type=float, default=0.01, help="Weight decay to use.")
     parser.add_argument('--max_grad_norm', type=float)
     parser.add_argument('--num_warmup_steps', type=int,default=530)
+    parser.add_argument("--cl_loss_weight", type=float, default=0.0001)
     parser.add_argument('--fp16', action='store_true')
     parser.add_argument("--use_wandb", action="store_true", help="whether to use wandb")
     parser.add_argument("--entity", type=str, help="wandb username")
     parser.add_argument("--project", type=str, help="wandb exp project")
     parser.add_argument("--name", type=str, help="wandb exp name")
     parser.add_argument("--log_all", action="store_true", help="log in all processes, otherwise only in rank0")
+    add_modality_args(parser)
     args = parser.parse_args()
     return args
 
@@ -109,9 +115,9 @@ if __name__ == '__main__':
         prompt_tokenizer=text_tokenizer, prompt_max_length=args.prompt_max_length,
         entity_max_length=args.entity_max_length,
     )
-    co = Co_occurrence(dataset=args.dataset, split='train', debug=args.debug ,all_items = kg['item_ids'],entity_max_length=args.entity_max_length,n_entity=kg['num_entities'] ).get_entity_co_info()
-    text_simi  = text_sim(pad_entity_id=kg['pad_entity_id'], dataset=args.dataset).get_entity_ts_info()
-    image_simi = image_sim(pad_entity_id=kg['pad_entity_id'], dataset=args.dataset).get_entity_is_info()
+    co = CollaborativeSemanticGraph(dataset=args.dataset, split='train', debug=args.debug, all_items=kg['item_ids'], entity_max_length=args.entity_max_length, n_entity=kg['num_entities']).get_entity_co_info()
+    text_simi = TextSemanticGraph(pad_entity_id=kg['pad_entity_id'], dataset=args.dataset, top_k=20).get_entity_ts_info()
+    image_simi = ImageSemanticGraph(pad_entity_id=kg['pad_entity_id'], dataset=args.dataset, top_k=20).get_entity_is_info()
     shot_len = int(len(train_dataset) * args.shot)
     train_dataset = random_split(train_dataset, [shot_len, len(train_dataset) - shot_len])[0]
     assert len(train_dataset) == shot_len
@@ -150,11 +156,12 @@ if __name__ == '__main__':
         collate_fn=data_collator,
     )
 
-    prompt_encoder = MMPrompt(
+    prompt_encoder = RedialRecommendationPromptEncoder(
         model.config.n_embd, text_encoder.config.hidden_size, model.config.n_head, model.config.n_layer, 2,
         n_entity=kg['num_entities'], num_relations=kg['num_relations'], num_bases=args.num_bases,
         edge_index=kg['edge_index'], edge_type=kg['edge_type'],edge_index_c = co['edge_index_c'],edge_index_t_s = text_simi['edge_index_t_s'],edge_index_i_s = image_simi['edge_index_i_s'],idx_to_id = text_simi['idx_to_id'],
-        n_prefix_rec=args.n_prefix_rec
+        n_prefix_rec=args.n_prefix_rec,
+        modality_config=modality_config_from_args(args, add_item_semantic_to_entities=False)
     )
     if args.prompt_encoder is not None:
         prompt_encoder.load(args.prompt_encoder)
@@ -182,6 +189,7 @@ if __name__ == '__main__':
     prompt_encoder, optimizer, train_dataloader, valid_dataloader, test_dataloader = accelerator.prepare(
         prompt_encoder, optimizer, train_dataloader, valid_dataloader, test_dataloader
     )
+    rec_model = MSCRSRecModel(model=model, text_encoder=text_encoder, prompt_encoder=prompt_encoder)
     num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps)
     if args.max_train_steps is None:
         args.max_train_steps = args.num_train_epochs * num_update_steps_per_epoch
@@ -214,118 +222,55 @@ if __name__ == '__main__':
     os.makedirs(best_metric_dir, exist_ok=True)
 
     for epoch in range(args.num_train_epochs):
-        train_loss = []
-        prompt_encoder.train()
-        for step, batch in enumerate(train_dataloader):
-            with torch.no_grad():
-                token_embeds = text_encoder(**batch['prompt']).last_hidden_state
-            prompt_embeds,loss_cl = prompt_encoder(
-                entity_ids=batch['entity'],
-                token_embeds=token_embeds,
-                output_entity=True,
-                use_rec_prefix=True
-            )
-            batch['context']['prompt_embeds'] = prompt_embeds
-            batch['context']['entity_embeds'] = prompt_encoder.get_entity_embeds()
-            loss = model(**batch['context'], rec=True).rec_loss / args.gradient_accumulation_steps
-            loss = loss +loss_cl*0.0001
-            accelerator.backward(loss)
-            train_loss.append(float(loss))
-            if (step + 1) % args.gradient_accumulation_steps == 0 or step == len(train_dataloader) - 1:
-                if args.max_grad_norm is not None:
-                    accelerator.clip_grad_norm_(prompt_encoder.parameters(), args.max_grad_norm)
-                optimizer.step()
-                lr_scheduler.step()
-                optimizer.zero_grad()
-                progress_bar.update(1)
-                completed_steps += 1
-                if run:
-                    run.log({'loss': np.mean(train_loss) * args.gradient_accumulation_steps})
-            if completed_steps >= args.max_train_steps:
-                break
-
-        train_loss = np.mean(train_loss) * args.gradient_accumulation_steps
+        train_loss, completed_steps = train_rec_epoch(
+            prompt_encoder=prompt_encoder,
+            rec_model=rec_model,
+            train_dataloader=train_dataloader,
+            accelerator=accelerator,
+            optimizer=optimizer,
+            lr_scheduler=lr_scheduler,
+            args=args,
+            progress_bar=progress_bar,
+            completed_steps=completed_steps,
+            run=run,
+            use_rec_prefix=True,
+        )
         logger.info(f'epoch {epoch} train loss {train_loss}')
-        del train_loss, batch
-        valid_loss = []
-        prompt_encoder.eval()
-        for batch in tqdm(valid_dataloader):
-            with torch.no_grad():
-                token_embeds = text_encoder(**batch['prompt']).last_hidden_state
-                prompt_embeds,loss_cl = prompt_encoder(
-                    entity_ids=batch['entity'],
-                    token_embeds=token_embeds,
-                    output_entity=True,
-                    use_rec_prefix=True
-                )
-                batch['context']['prompt_embeds'] = prompt_embeds
-                batch['context']['entity_embeds'] = prompt_encoder.get_entity_embeds()
-                outputs = model(**batch['context'], rec=True)
-                valid_loss.append(float(outputs.rec_loss))
-                logits = outputs.rec_logits[:, kg['item_ids']]
-                ranks = torch.topk(logits, k=50, dim=-1).indices.tolist()
-                ranks = [[kg['item_ids'][rank] for rank in batch_rank] for batch_rank in ranks]
-                labels = batch['context']['rec_labels']
-                evaluator.evaluate(ranks, labels)
 
-        report = accelerator.gather(evaluator.report())
-        for k, v in report.items():
-            report[k] = v.sum().item()
-
-        valid_report = {}
-        for k, v in report.items():
-            if k != 'count':
-                valid_report[f'valid/{k}'] = v / report['count']
-        valid_report['valid/loss'] = np.mean(valid_loss)
-        valid_report['epoch'] = epoch
+        valid_report = evaluate_rec_epoch(
+            prompt_encoder=prompt_encoder,
+            rec_model=rec_model,
+            dataloader=valid_dataloader,
+            evaluator=evaluator,
+            accelerator=accelerator,
+            report_prefix='valid',
+            epoch=epoch,
+            item_ids=kg['item_ids'],
+            use_rec_prefix=True,
+        )
         logger.info(f'{valid_report}')
         if run:
             run.log(valid_report)
-        evaluator.reset_metric()
 
         if valid_report[f'valid/{metric}'] * mode > best_metric * mode:
             prompt_encoder.save(best_metric_dir)
             best_metric = valid_report[f'valid/{metric}']
             logger.info(f'new best model with {metric}')
 
-        # test
-        test_loss = []
-        prompt_encoder.eval()
-        for batch in tqdm(test_dataloader):
-            with torch.no_grad():
-                token_embeds = text_encoder(**batch['prompt']).last_hidden_state
-                prompt_embeds,loss_cl = prompt_encoder(
-                    entity_ids=batch['entity'],
-                    token_embeds=token_embeds,
-                    output_entity=True,
-                    use_rec_prefix=True
-                )
-                batch['context']['prompt_embeds'] = prompt_embeds
-                batch['context']['entity_embeds'] = prompt_encoder.get_entity_embeds()
-
-                outputs = model(**batch['context'], rec=True)
-                test_loss.append(float(outputs.rec_loss))
-                logits = outputs.rec_logits[:, kg['item_ids']]
-                ranks = torch.topk(logits, k=50, dim=-1).indices.tolist()
-                ranks = [[kg['item_ids'][rank] for rank in batch_rank] for batch_rank in ranks]
-                labels = batch['context']['rec_labels']
-                evaluator.evaluate(ranks, labels)
-
-        # metric
-        report = accelerator.gather(evaluator.report())
-        for k, v in report.items():
-            report[k] = v.sum().item()
-
-        test_report = {}
-        for k, v in report.items():
-            if k != 'count':
-                test_report[f'test/{k}'] = v / report['count']
-        test_report['test/loss'] = np.mean(test_loss)
-        test_report['epoch'] = epoch
+        test_report = evaluate_rec_epoch(
+            prompt_encoder=prompt_encoder,
+            rec_model=rec_model,
+            dataloader=test_dataloader,
+            evaluator=evaluator,
+            accelerator=accelerator,
+            report_prefix='test',
+            epoch=epoch,
+            item_ids=kg['item_ids'],
+            use_rec_prefix=True,
+        )
         logger.info(f'{test_report}')
         if run:
             run.log(test_report)
-        evaluator.reset_metric()
 
     final_dir = os.path.join(args.output_dir, 'final')
     prompt_encoder.save(final_dir)

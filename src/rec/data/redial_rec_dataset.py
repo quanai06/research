@@ -136,7 +136,7 @@ class CRSRecDataCollator:
 
 
 if __name__ == '__main__':
-    from src.rec.data.dataset_dbpedia import DBpedia
+    from src.rec.data.redial_kg_resources import DBpedia
     from src.rec.config import gpt2_special_tokens_dict, prompt_special_tokens_dict
     from pprint import pprint
 

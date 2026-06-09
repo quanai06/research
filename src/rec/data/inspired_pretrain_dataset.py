@@ -1,23 +1,9 @@
 import json
-import os
-from collections import defaultdict
-
 import torch
+from collections import defaultdict
 from torch.utils.data import Dataset, DataLoader
 from tqdm.auto import tqdm
 from transformers import AutoTokenizer
-import json
-import os
-import tqdm
-import torch
-from loguru import logger
-from collections import defaultdict
-from sklearn.metrics.pairwise import cosine_similarity
-import numpy as np
-from tqdm.auto import tqdm
-from scipy.sparse import coo_matrix
-from collections import Counter
-from sklearn.neighbors import NearestNeighbors
 
 from src.common.path_utils import get_rec_data_dir, require_data_file
 from src.rec.utils import padded_tensor
@@ -245,7 +231,7 @@ class CRSDataCollator:
 
 
 if __name__ == '__main__':
-    from src.rec.data.dataset_dbpedia import DBpedia
+    from src.rec.data.inspired_kg_resources import DBpedia
     from src.rec.config import gpt2_special_tokens_dict
     from pprint import pprint
 
